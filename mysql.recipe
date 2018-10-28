@@ -1,0 +1,52 @@
+Bootstrap: docker
+From: centos:7.3.1611
+
+%labels
+  AUTHOR "simotrone@gmail.com"
+  VERSION  "0.5"
+
+%help
+  MySQL server 5.5.60
+  Need mount /var/lib/mysql /var/log/mariadb /var/run/mariadb on host.
+  $ singularity instance.start -B lib:/var/lib/mysql -B log:/var/log/mariadb -B run:/var/run/mariadb this.simg mysql
+
+%setup
+  # create mysql init file
+  cat <<EOT >> ${SINGULARITY_ROOTFS}/init_db_server
+SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
+CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
+CREATE DATABASE IF NOT EXISTS local_db;
+GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
+DROP DATABASE IF EXISTS test;
+EOT
+
+%post
+  yum -y install mariadb-server vim
+  # yum -y update
+
+
+%startscript
+  # mysql
+  echo "starting mysql"
+  EXIT=0
+  for dir in /var/lib/mysql /var/log/mariadb /var/run/mariadb; do
+    touch $dir/write_test
+    if [ ! -f $dir/write_test ]; then
+      echo "$dir/ is not writable. Bind it to host directory."
+      EXIT=1
+    else
+      rm -f $dir/write_test
+    fi
+  done
+  [ $EXIT -ne 0 ] && exit 1
+  # see singularity logs in /tmp
+
+  # Check for initialization
+  if [ ! -d /var/lib/mysql/mysql ]; then
+      echo "Initializing mysqld"
+      mysql_install_db
+  fi
+
+  # launch mysqld
+  echo "Start mysqld"
+  mysqld_safe --init-file=${SINGULARITY_ROOTFS}/init_db_server &
