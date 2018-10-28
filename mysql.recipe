@@ -3,25 +3,30 @@ From: centos:7.3.1611
 
 %labels
   AUTHOR "simotrone@gmail.com"
-  VERSION  "0.5"
+  VERSION  "0.8"
 
 %help
-  MySQL server 5.5.60
-  Need mount /var/lib/mysql /var/log/mariadb /var/run/mariadb on host.
-  $ singularity instance.start -B lib:/var/lib/mysql -B log:/var/log/mariadb -B run:/var/run/mariadb this.simg mysql
+  MySQL server 5.7.24
+  Need mount /var/lib/mysql /var/log/ /var/run/mariadb on host.
+  $ singularity instance.start -B lib:/var/lib -B log:/var/log/ -B run:/var/run this.simg mysql
 
 %setup
   # create mysql init file
-  cat <<EOT >> ${SINGULARITY_ROOTFS}/init_db_server
-SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
-CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
-CREATE DATABASE IF NOT EXISTS local_db;
-GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
-DROP DATABASE IF EXISTS test;
-EOT
+  cp init_db_server ${SINGULARITY_ROOTFS}/init_db_server
+  # init_db_server example:
+  # SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
+  # CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
+  # CREATE DATABASE IF NOT EXISTS local_db;
+  # GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
+  # DROP DATABASE IF EXISTS test;
 
 %post
-  yum -y install mariadb-server vim
+  yum -y install vim wget
+  wget https://dev.mysql.com/get/mysql57-community-release-el7-9.noarch.rpm
+  echo "1a29601dc380ef2c7bc25e2a0e25d31e  mysql57-community-release-el7-9.noarch.rpm" > hash_md5
+  md5sum -c hash_md5
+  rpm -ivh mysql57-community-release-el7-9.noarch.rpm
+  yum -y install mysql-server
   # yum -y update
 
 
@@ -29,7 +34,8 @@ EOT
   # mysql
   echo "starting mysql"
   EXIT=0
-  for dir in /var/lib/mysql /var/log/mariadb /var/run/mariadb; do
+  for dir in /var/lib/mysql /var/log /var/run/mysqld; do
+    mkdir -p $dir
     touch $dir/write_test
     if [ ! -f $dir/write_test ]; then
       echo "$dir/ is not writable. Bind it to host directory."
@@ -44,9 +50,9 @@ EOT
   # Check for initialization
   if [ ! -d /var/lib/mysql/mysql ]; then
       echo "Initializing mysqld"
-      mysql_install_db
+      mysqld --initialize  --init-file=/init_db_server
   fi
 
   # launch mysqld
   echo "Start mysqld"
-  mysqld_safe --init-file=${SINGULARITY_ROOTFS}/init_db_server &
+  mysqld --secure-file-priv=NULL &
