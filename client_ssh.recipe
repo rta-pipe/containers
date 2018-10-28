@@ -1,0 +1,55 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.4"
+
+%setup
+  EXIT=0
+  for item in client_ssh.slurm_id_rsa; do
+    if [ ! -f $item ]; then
+      echo "file $file doesn't exists. It's mandatory. Please create the key."
+      EXIT=1
+    fi
+  done
+  [ $EXIT -ne 0 ] &&  exit 1
+
+  mkdir -p $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm
+  cp client_ssh.slurm_id_rsa     $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm/id_rsa
+  chmod 644 $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm/id_rsa
+
+%help 
+  Just a ssh client
+
+%post
+  yum -y install openssh-clients
+
+  # slurm proxy
+  cat <<EOF >> /usr/local/bin/slurm_proxy
+SSH_USER=user_account
+SSH_HOST=server_account
+run_remote_command() {
+  ssh -o "StrictHostKeyChecking no" -i /usr/local/etc/ssh/slurm/id_rsa \$SSH_USER@\$SSH_HOST \$@
+}
+EOF
+
+  # slurm squeue
+  cat <<EOF >> /usr/local/bin/squeue
+#!/bin/bash
+source /usr/local/bin/slurm_proxy
+run_remote_command squeue \$@
+EOF
+  chmod 755 /usr/local/bin/squeue
+
+  # slurm sbatch
+  cat <<EOF >> /usr/local/bin/sbatch
+#!/bin/bash
+source /usr/local/bin/slurm_proxy
+[ ! -f \$1 ] && echo "cannot access to file '\$1'" && exit 1
+scp -o "StrictHostKeyChecking no" -i /usr/local/etc/ssh/slurm/id_rsa \$1 \$SSH_USER@\$SSH_HOST:~
+run_remote_command sbatch \$@
+run_remote_command rm -v \$1
+EOF
+  chmod 755 /usr/local/bin/sbatch
+
