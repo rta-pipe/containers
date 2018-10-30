@@ -142,4 +142,5 @@ EOF
   $ singularity exec full.simg squeue
   $ singularity exec full.simg python -V
   $ singularity exec instance://full php -v
+  $ singularity exec instance://full squeue
 
