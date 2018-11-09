@@ -1,0 +1,256 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.13"
+
+
+%post
+  yum -y install openssh-clients httpd php
+  yum -y install gcc gcc-c++ make python-devel
+  yum -y install bzip2 curl git less vim wget
+  yum -y install epel-release
+  yum -y install redis
+  # yum -y update
+
+  SRC_DIR="/usr/local/src"
+  cd $SRC_DIR
+
+  echo "mysqld"
+  wget https://dev.mysql.com/get/mysql57-community-release-el7-9.noarch.rpm
+  echo "1a29601dc380ef2c7bc25e2a0e25d31e  mysql57-community-release-el7-9.noarch.rpm" > mysql_hash_md5
+  md5sum -c mysql_hash_md5
+  rpm -ivh mysql57-community-release-el7-9.noarch.rpm
+  yum -y install mysql-server
+
+  # rta lib
+  git clone https://github.com/rta-pipe/RTAlib
+
+  RTA_DEP_DIR="${SRC_DIR}/rtalib_dep_libs"
+  mkdir -p $RTA_DEP_DIR/libraries_sources
+  mkdir -p $RTA_DEP_DIR/libraries_building_area
+  mkdir -p $RTA_DEP_DIR/libraries_installed
+
+  echo "rta lib cmake"
+  mkdir -p $RTA_DEP_DIR/libraries_building_area/cmake-3.12.3
+  mkdir -p $RTA_DEP_DIR/libraries_installed/cmake-3.12.3
+  cd $RTA_DEP_DIR/libraries_sources
+  wget https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
+  cd $RTA_DEP_DIR/libraries_building_area
+  tar -zxvf $RTA_DEP_DIR/libraries_sources/cmake-3.12.3.tar.gz
+  cd cmake-3.12.3
+  ./bootstrap --prefix=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3
+  make
+  make install
+  # CMAKE=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/
+
+  echo "rta lib boost"
+  mkdir -p $RTA_DEP_DIR/libraries_building_area/boost_1_67_0
+  mkdir -p $RTA_DEP_DIR/libraries_installed/boost_1_67_0
+  cd $RTA_DEP_DIR/libraries_sources
+  wget https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.bz2
+  cd $RTA_DEP_DIR/libraries_building_area
+  tar --bzip2 -xf $RTA_DEP_DIR/libraries_sources/boost_1_67_0.tar.bz2
+  cd $RTA_DEP_DIR/libraries_building_area/boost_1_67_0/
+  ./bootstrap.sh --prefix=$RTA_DEP_DIR/libraries_installed/boost_1_67_0
+  ./b2 install
+
+  echo "Mysqlcpp connector"
+  mkdir -p $RTA_DEP_DIR/libraries_building_area/mysql-connector-cpp-build
+  mkdir -p $RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install
+  cd $RTA_DEP_DIR/libraries_sources
+  git clone https://github.com/mysql/mysql-connector-cpp.git
+  cd mysql-connector-cpp
+  git checkout 8.0
+  cd $RTA_DEP_DIR/libraries_building_area/mysql-connector-cpp-build
+  PATH="$PATH:$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/"
+#  cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/ \
+#        -DBOOST_ROOT=$RTA_DEP_DIR/libraries_installed/boost_1_67_0 \
+#        -DCMAKE_BUILD_TYPE=Release \
+#        $RTA_DEP_DIR/libraries_sources/mysql-connector-cpp/
+#  cmake --build . --target install --config Release
+
+  echo "Hiredis"
+  cd $RTA_DEP_DIR/libraries_installed
+  git clone https://github.com/redis/hiredis.git
+  cd hiredis
+  make
+  cp libhiredis.so libhiredis.so.0.14
+
+  echo "CFitsio"
+  mkdir -p $RTA_DEP_DIR/libraries_installed/cfitsio_install
+  cd $RTA_DEP_DIR/libraries_sources
+  wget http://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio3450.tar.gz
+  tar -zxvf cfitsio3450.tar.gz
+  cd cfitsio
+  ./configure --prefix=$RTA_DEP_DIR/libraries_installed/cfitsio_install
+  make
+  make shared
+  make install
+
+  echo "RTAPrototype"
+  cd $RTA_DEP_DIR/libraries_installed
+  git clone https://github.com/ASTRO-BO/RTAPrototype2-Setup
+  cd RTAPrototype2-Setup
+  git submodule update --init
+  rm -r RTAPrototype2
+
+  export LIBRARY_PATH=$RTA_DEP_DIR/libraries_installed/cfitsio_install/lib:$LIBRARY_PATH
+  export LD_LIBRARY_PATH=$RTA_DEP_DIR/libraries_installed/cfitsio_install/lib:$LD_LIBRARY_PATH
+  export CPLUS_INCLUDE_PATH=$RTA_DEP_DIR/libraries_installed/cfitsio_install/include:$CPLUS_INCLUDE_PATH
+  export C_INCLUDE_PATH=$RTA_DEP_DIR/libraries_installed/cfitsio_install/include:$C_INCLUDE_PATH
+  export CFITSIO_LIBDIR=$RTA_DEP_DIR/libraries_installed/cfitsio_install/lib:$CFITSIO_LIBDIR
+  export CFITSIO_INCDIR=$RTA_DEP_DIR/libraries_installed/cfitsio_install/lib:$CFITSIO_INCDIR
+  # a little hackish change
+  sed -i '187i [ ! -d $sourcedir/$i ] && continue' ./install
+  ./install
+
+  echo "Google Test"
+  mkdir -p $RTA_DEP_DIR/libraries_building_area/google-test-1.8.1
+  mkdir -p $RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install
+  cd $RTA_DEP_DIR/libraries_sources
+  git clone https://github.com/google/googletest.git
+  cd googletest/
+  git checkout release-1.8.1
+  cd $RTA_DEP_DIR/libraries_building_area/google-test-1.8.1
+  cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install \
+        $RTA_DEP_DIR/libraries_sources/googletest
+  make
+  make install
+
+  echo "RTA Compilation"
+  cd $SRC_DIR/RTAlib/CxxRTAlib
+  export REDIS=$RTA_DEP_DIR/libraries_installed/hiredis
+  export MYSQL_CXX_CNT=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install
+  export BOOST_PATH=$RTA_DEP_DIR/libraries_installed/boost_1_67_0
+  export CTA_ALGORITHMS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAAlgorithms
+  export CTA_UTILS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAUtils
+  export GTEST_DIR=$RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install
+#  make
+
+
+  # slurm proxy
+  cat <<EOF >> /usr/local/bin/slurm_proxy
+SSH_USER=username
+SSH_HOST=remote_box
+run_remote_command() {
+  ssh -o "StrictHostKeyChecking no" -i /usr/local/etc/ssh/slurm/id_rsa \$SSH_USER@\$SSH_HOST \$@
+}
+EOF
+
+  # slurm squeue
+  cat <<EOF >> /usr/local/bin/squeue
+#!/bin/bash
+source /usr/local/bin/slurm_proxy
+run_remote_command squeue \$@
+EOF
+  chmod 755 /usr/local/bin/squeue
+
+  # apache conf
+  sed -e '/^Listen 80/ s/^/# /' -i /etc/httpd/conf/httpd.conf
+  cat <<EOF >> /etc/httpd/conf.d/local.conf
+ServerName 127.0.0.1
+Listen 8080
+EOF
+
+  echo "Install anaconda 5.3.0 x86_64"
+  wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
+  echo "cfbf5fe70dd1b797ec677e63c61f8efc92dad930fd1c94d60390bb07fdc09959  Anaconda3-5.3.0-Linux-x86_64.sh" > anaconda_hash_sha256
+  sha256sum -c anaconda_hash_sha256
+  bash Anaconda3-5.3.0-Linux-x86_64.sh -b -p /opt/anaconda3
+  ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+  export PATH=/opt/anaconda3/bin:${PATH}
+  conda create -y -n pipe_manager_py36 python=3.6 astropy=3.0 lxml=4.1.1 mysql-connector-python=2.0.4
+  conda clean -y --all
+
+
+%environment
+  PATH="/opt/anaconda3/bin:${PATH}"
+  export PATH
+  # Enabling python environment...
+  source /etc/profile.d/conda.sh
+  conda activate pipe_manager_py36
+
+
+%setup
+  # create mysql init file
+  cp init_db_server ${SINGULARITY_ROOTFS}/init_db_server
+  # init_db_server example:
+  # SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
+  # CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
+  # CREATE DATABASE IF NOT EXISTS local_db;
+  # GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
+  # DROP DATABASE IF EXISTS test;
+
+  # ssh client
+  EXIT=0
+  for item in client_ssh.slurm_id_rsa; do
+    if [ ! -f $item ]; then
+      echo "file $file doesn't exists. It's mandatory. Please create the key."
+      EXIT=1
+    fi
+  done
+  [ $EXIT -ne 0 ] &&  exit 1
+
+  mkdir -p $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm
+  cp client_ssh.slurm_id_rsa $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm/id_rsa
+  chmod 644 $SINGULARITY_ROOTFS/usr/local/etc/ssh/slurm/id_rsa
+
+
+%startscript
+  echo "checking service's dirs"
+  EXIT=0
+  # redis + mysql + httpd
+  DIRS="/var/lib/redis /var/log/redis /var/run"
+  DIRS="$DIRS /var/lib/mysql /var/log /var/run/mysqld"
+  DIRS="$DIRS /var/log/httpd /var/run/httpd"
+  for dir in $DIRS; do
+    mkdir -p $dir
+    touch $dir/write_test
+    if [ ! -f $dir/write_test ]; then
+      echo "$dir/ is not writable. Bind it to host directory."
+      EXIT=1
+    else
+      rm -f $dir/write_test
+    fi
+  done
+  [ $EXIT -ne 0 ] && exit 1
+  # see singularity logs in /tmp
+
+  # Check for initialization
+  if [ ! -d /var/lib/mysql/mysql ]; then
+      echo "Initializing mysqld"
+      mysqld --initialize  --init-file=/init_db_server
+      # remove init_db_server
+  fi
+
+  # launch redis-server
+  echo "Start redis-server"
+  /usr/bin/redis-server &
+
+  # launch mysqld
+  echo "Start mysqld"
+  mysqld --secure-file-priv=NULL &
+
+  # launch apache
+  echo "Start apache"
+  /usr/sbin/httpd &
+
+
+%help
+  mysql server
+  redis server
+  apache server
+  ssh client
+  python env
+  php
+  rta pipe lib
+
+  # create lib log run dirs on host and bind them
+  $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run full.simg full
+  $ singularity exec full.simg squeue
+  $ singularity exec full.simg python -V
+  $ singularity exec instance://full php -v
+  $ singularity exec instance://full squeue
+
