@@ -3,13 +3,13 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.13"
+  version "0.15"
 
 
 %post
   yum -y install openssh-clients httpd php
   yum -y install gcc gcc-c++ make python-devel
-  yum -y install bzip2 curl git less vim wget
+  yum -y install bzip2 curl git less nmap-ncat vim wget
   yum -y install epel-release
   yum -y install redis
   # yum -y update
@@ -43,7 +43,8 @@ From: centos:7.3.1611
   ./bootstrap --prefix=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3
   make
   make install
-  # CMAKE=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/
+  # TODO comment useless (?) CMAKE export
+  export CMAKE=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/
 
   echo "rta lib boost"
   mkdir -p $RTA_DEP_DIR/libraries_building_area/boost_1_67_0
@@ -64,7 +65,7 @@ From: centos:7.3.1611
   cd mysql-connector-cpp
   git checkout 8.0
   cd $RTA_DEP_DIR/libraries_building_area/mysql-connector-cpp-build
-  PATH="$PATH:$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/"
+  export PATH="$PATH:$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/"
 #  cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/ \
 #        -DBOOST_ROOT=$RTA_DEP_DIR/libraries_installed/boost_1_67_0 \
 #        -DCMAKE_BUILD_TYPE=Release \
@@ -76,6 +77,7 @@ From: centos:7.3.1611
   git clone https://github.com/redis/hiredis.git
   cd hiredis
   make
+  # TODO create a symbolic link
   cp libhiredis.so libhiredis.so.0.14
 
   echo "CFitsio"
@@ -153,6 +155,16 @@ EOF
 ServerName 127.0.0.1
 Listen 8080
 EOF
+
+  # netcat against running apache script
+  cat <<EOF >> /usr/local/bin/test_apache
+#!/bin/bash
+apachectl -V
+echo ""
+echo "HTTP/1.0 / GET" | nc localhost 8080
+EOF
+  chmod 755 /usr/local/bin/test_apache
+
 
   echo "Install anaconda 5.3.0 x86_64"
   wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
@@ -242,7 +254,7 @@ EOF
   mysql server
   redis server
   apache server
-  ssh client
+  ssh client (private key in /usr/local/etc/ssh/slurm/id_rsa)
   python env
   php
   rta pipe lib
@@ -253,4 +265,6 @@ EOF
   $ singularity exec full.simg python -V
   $ singularity exec instance://full php -v
   $ singularity exec instance://full squeue
+
+  $ singularity exec instance://full test_apache
 
