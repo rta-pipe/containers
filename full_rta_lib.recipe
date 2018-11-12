@@ -3,12 +3,12 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.15"
+  version "0.16"
 
 
 %post
   yum -y install openssh-clients httpd php
-  yum -y install gcc gcc-c++ make python-devel
+  yum -y install gcc gcc-c++ make python-devel openssl-devel
   yum -y install bzip2 curl git less nmap-ncat vim wget
   yum -y install epel-release
   yum -y install redis
@@ -66,11 +66,11 @@ From: centos:7.3.1611
   git checkout 8.0
   cd $RTA_DEP_DIR/libraries_building_area/mysql-connector-cpp-build
   export PATH="$PATH:$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/"
-#  cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/ \
-#        -DBOOST_ROOT=$RTA_DEP_DIR/libraries_installed/boost_1_67_0 \
-#        -DCMAKE_BUILD_TYPE=Release \
-#        $RTA_DEP_DIR/libraries_sources/mysql-connector-cpp/
-#  cmake --build . --target install --config Release
+  cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/ \
+        -DBOOST_ROOT=$RTA_DEP_DIR/libraries_installed/boost_1_67_0 \
+        -DCMAKE_BUILD_TYPE=Release \
+        $RTA_DEP_DIR/libraries_sources/mysql-connector-cpp/
+  cmake --build . --target install --config Release
 
   echo "Hiredis"
   cd $RTA_DEP_DIR/libraries_installed
@@ -155,6 +155,8 @@ EOF
 ServerName 127.0.0.1
 Listen 8080
 EOF
+
+  # TODO we can change redis port touching /etc/redis.conf
 
   # netcat against running apache script
   cat <<EOF >> /usr/local/bin/test_apache
