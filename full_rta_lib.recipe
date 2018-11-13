@@ -168,6 +168,8 @@ EOF
   chmod 755 /usr/local/bin/test_apache
 
 
+  # it's important anaconda section stay at the end of the building process
+  # standard python environment it's mandatory to build previous sections
   echo "Install anaconda 5.3.0 x86_64"
   wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
   echo "cfbf5fe70dd1b797ec677e63c61f8efc92dad930fd1c94d60390bb07fdc09959  Anaconda3-5.3.0-Linux-x86_64.sh" > anaconda_hash_sha256
@@ -270,3 +272,11 @@ EOF
 
   $ singularity exec instance://full test_apache
 
+  # TODO
+  # fix setupDB script
+  # final test to run
+  export SRC_DIR="/usr/local/src"
+  export RTA_DEP_DIR="${SRC_DIR}/rtalib_dep_libs"
+  export LD_LIBRARY_PATH="$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/lib64/:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="$RTA_DEP_DIR/libraries_installed/hiredis:$LD_LIBRARY_PATH"
+  $SRC_DIR/RTAlib/CxxRTAlib/TestEnvironment/bin/unitTest
