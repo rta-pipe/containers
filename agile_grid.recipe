@@ -1,0 +1,55 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.04"
+
+%post
+  yum -y install git make gcc gcc-c++ binutils python-devel \
+                 libX11-devel libXpm-devel libXft-devel libXext-devel
+  yum -y install bzip2 curl less vim wget
+
+  # Optional packages:
+  # yum install gcc-gfortran openssl-devel pcre-devel mesa-libGL-devel mesa-libGLU-devel glew-devel \
+  #             ftgl-devel mysql-devel fftw-devel cfitsio-devel graphviz-devel \
+  #             avahi-compat-libdns_sd-devel libldap-dev libxml2-devel gsl-static
+
+  SRC_DIR="/usr/local/src"
+
+  echo "cmake 3.12.3"
+  cd $SRC_DIR
+  wget https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
+  tar xzf cmake-3.12.3.tar.gz
+  cd cmake-3.12.3
+  ./bootstrap
+  make install
+
+  echo "CFitsio"
+  cd $SRC_DIR
+  wget http://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio3450.tar.gz
+  tar xzf cfitsio3450.tar.gz
+  cd cfitsio
+  ./configure --prefix=/usr/local/
+  make
+  make shared
+  make install
+
+  echo "CERN root"
+  cd $SRC_DIR
+  wget https://root.cern.ch/download/root_v6.14.04.source.tar.gz
+  tar xzf root_v6.14.04.source.tar.gz
+  cd root-6.14.04/
+  mkdir $SRC_DIR/build_root
+  cd $SRC_DIR/build_root
+  cmake $SRC_DIR/root-6.14.04
+  cmake --build . --target install
+
+
+
+%help
+  doc: https://github.com/AGILESCIENCE/AGILE-GRID-ScienceTools-Setup
+  cfitsio
+  root CERN
+  # agile needs opencv. opencv 2.4.5 in yum repo
+  # https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
