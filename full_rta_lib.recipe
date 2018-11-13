@@ -3,7 +3,7 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.16"
+  version "0.20"
 
 
 %post
@@ -129,7 +129,7 @@ From: centos:7.3.1611
   export CTA_ALGORITHMS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAAlgorithms
   export CTA_UTILS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAUtils
   export GTEST_DIR=$RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install
-#  make
+  make
 
 
   # slurm proxy
@@ -163,7 +163,7 @@ EOF
 #!/bin/bash
 apachectl -V
 echo ""
-echo "HTTP/1.0 / GET" | nc localhost 8080
+echo "GET / HTTP/1.1" | nc localhost 8080
 EOF
   chmod 755 /usr/local/bin/test_apache
 
