@@ -45,6 +45,13 @@ From: centos:7.3.1611
   cmake $SRC_DIR/root-6.14.04
   cmake --build . --target install
 
+  cd $SRC_DIR
+  git clone https://github.com/AGILESCIENCE/AGILE-GRID-ScienceTools-Setup.git
+  cd AGILE-GRID-ScienceTools-Setup/
+  ./downloadScienceTools.sh
+  # ./installScienceTools.sh
+  ./downloadIRF.sh
+  ./installIRF.sh
 
 
 %help
