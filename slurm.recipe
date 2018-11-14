@@ -1,0 +1,102 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.6"
+
+%setup
+  EXIT=0
+
+%help 
+  Just a slurm thing
+
+%post
+  yum -y install crontabs wget 
+  yum -y install deltarpm perl net-tools libaio perl-Getopt-Long numactl-libs
+  # yum -y update
+  localedef -i en_US -f UTF-8 en_US.UTF-8
+
+  SRC_DIR="/usr/local/src"
+
+  # mysqld
+  cd $SRC_DIR
+  MYSQL_RPMS="mysql-community-server-5.7.24-1.el7.x86_64.rpm
+              mysql-community-client-5.7.24-1.el7.x86_64.rpm
+              mysql-community-common-5.7.24-1.el7.x86_64.rpm
+              mysql-community-libs-5.7.24-1.el7.x86_64.rpm
+              mysql-community-devel-5.7.24-1.el7.x86_64.rpm"
+  for rpm_file in $MYSQL_RPMS; do
+    wget "https://dev.mysql.com/get/Downloads/MySQL-5.7/$rpm_file"
+  done
+  echo "6ef92158238cd2dd8a7b74f85c62490d  mysql-community-server-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
+  echo "8044968ba1cdce487baf7b2d5ec42629  mysql-community-devel-5.7.24-1.el7.x86_64.rpm"  >> mysql_hash_md5
+  echo "daac5b7147949351aed38995c647194b  mysql-community-client-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
+  echo "5f10843255b1987acbc89a7d1c3a18af  mysql-community-common-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
+  echo "ba4058a9233d7a1d33b77283798dcdea  mysql-community-libs-5.7.24-1.el7.x86_64.rpm"   >> mysql_hash_md5
+
+  md5sum -c mysql_hash_md5
+  rpm -ivh $MYSQL_RPMS
+
+  yum -y install epel-release
+  yum -y install munge munge-libs munge-devel
+
+  yum -y install openssl openssl-devel pam-devel numactl numactl-devel hwloc hwloc-devel lua lua-devel readline-devel rrdtool-devel ncurses-devel man2html libibmad libibumad
+  yum -y install rpm-build perl-ExtUtils-MakeMaker
+  yum -y groupinstall "Development Tools"
+
+  cd $SRC_DIR
+  wget https://download.schedmd.com/slurm/slurm-17.11.12.tar.bz2
+  echo "42f0a5dbe34210283f474328ac6e8d5267dc2386 slurm-17.11.12.tar.bz2" > hash_sha1
+  sha1sum -c hash_sha1
+  rpmbuild -ta slurm-17.11.12.tar.bz2
+  yum -y --nogpgcheck localinstall /root/rpmbuild/RPMS/x86_64/slurm-*rpm
+  cp /slurm_slurmdbd.conf /etc/slurm/slurmdbd.conf
+  cp /slurm_slurm.conf    /etc/slurm/slurm.conf
+
+
+%setup
+  # create mysql init file
+  cp slurm_init_db_server ${SINGULARITY_ROOTFS}/slurm_init_db_server
+  cp slurm_slurmdbd.conf  ${SINGULARITY_ROOTFS}/slurm_slurmdbd.conf
+  cp slurm_slurm.conf     ${SINGULARITY_ROOTFS}/slurm_slurm.conf
+
+
+%startscript
+  echo "checking service's dirs"
+  EXIT=0
+  DIRS="$DIRS /var/lib/mysql /var/log /var/run/mysqld"
+  for dir in $DIRS; do
+    mkdir -p $dir
+    touch $dir/write_test
+    if [ ! -f $dir/write_test ]; then
+      echo "$dir/ is not writable. Bind it to host directory."
+      EXIT=1
+    else
+      rm -f $dir/write_test
+    fi
+  done
+  [ $EXIT -ne 0 ] && exit 1
+  # see singularity logs in /tmp
+
+  # Check for initialization
+  if [ ! -d /var/lib/mysql/mysql ]; then
+      echo "Initializing mysqld"
+      mysqld --initialize  --init-file=/slurm_init_db_server
+      # remove slurm_init_db_server
+  fi
+
+  # launch mysqld
+  echo "Start mysqld"
+  mysqld --secure-file-priv=NULL &
+
+
+%help
+  # create lib log run dirs on host and bind them
+  $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run -B spool:/var/spool slurm.simg slurm
+
+  # need slurm_init_db_server, slurm_slurm.conf and slurmdbd.conf at building time
+  
+  docs
+  # https://www.slothparadise.com/how-to-install-slurm-on-centos-7-cluster/
+  # https://slurm.schedmd.com/accounting.html
