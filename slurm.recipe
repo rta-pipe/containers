@@ -5,9 +5,6 @@ From: centos:7.3.1611
   author "simotrone@gmail.com"
   version "0.6"
 
-%setup
-  EXIT=0
-
 %help 
   Just a slurm thing
 
