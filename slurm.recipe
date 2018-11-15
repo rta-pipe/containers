@@ -3,10 +3,7 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.6"
-
-%help 
-  Just a slurm thing
+  version "0.8"
 
 %post
   yum -y install crontabs wget 
@@ -14,6 +11,7 @@ From: centos:7.3.1611
   # yum -y update
   localedef -i en_US -f UTF-8 en_US.UTF-8
 
+  useradd slurm
   SRC_DIR="/usr/local/src"
 
   # mysqld
@@ -26,11 +24,13 @@ From: centos:7.3.1611
   for rpm_file in $MYSQL_RPMS; do
     wget "https://dev.mysql.com/get/Downloads/MySQL-5.7/$rpm_file"
   done
-  echo "6ef92158238cd2dd8a7b74f85c62490d  mysql-community-server-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
-  echo "8044968ba1cdce487baf7b2d5ec42629  mysql-community-devel-5.7.24-1.el7.x86_64.rpm"  >> mysql_hash_md5
-  echo "daac5b7147949351aed38995c647194b  mysql-community-client-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
-  echo "5f10843255b1987acbc89a7d1c3a18af  mysql-community-common-5.7.24-1.el7.x86_64.rpm" >> mysql_hash_md5
-  echo "ba4058a9233d7a1d33b77283798dcdea  mysql-community-libs-5.7.24-1.el7.x86_64.rpm"   >> mysql_hash_md5
+  cat <<EOF >> $SRC_DIR/mysql_hash_md5
+6ef92158238cd2dd8a7b74f85c62490d  mysql-community-server-5.7.24-1.el7.x86_64.rpm
+8044968ba1cdce487baf7b2d5ec42629  mysql-community-devel-5.7.24-1.el7.x86_64.rpm
+daac5b7147949351aed38995c647194b  mysql-community-client-5.7.24-1.el7.x86_64.rpm
+5f10843255b1987acbc89a7d1c3a18af  mysql-community-common-5.7.24-1.el7.x86_64.rpm
+ba4058a9233d7a1d33b77283798dcdea  mysql-community-libs-5.7.24-1.el7.x86_64.rpm
+EOF
 
   md5sum -c mysql_hash_md5
   rpm -ivh $MYSQL_RPMS
@@ -62,7 +62,8 @@ From: centos:7.3.1611
 %startscript
   echo "checking service's dirs"
   EXIT=0
-  DIRS="$DIRS /var/lib/mysql /var/log /var/run/mysqld"
+  DIRS="/var/lib/mysql /var/log /var/run/mysqld"
+  DIRS="$DIRS /var/spool/slurm /var/log/slurm"
   for dir in $DIRS; do
     mkdir -p $dir
     touch $dir/write_test
