@@ -3,15 +3,36 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.8"
+  version "0.10"
 
 %post
-  yum -y install crontabs wget 
+  yum -y install crontabs wget vim
   yum -y install deltarpm perl net-tools libaio perl-Getopt-Long numactl-libs
   # yum -y update
   localedef -i en_US -f UTF-8 en_US.UTF-8
 
-  useradd slurm
+  export MUNGEUSER=991
+  groupadd -g $MUNGEUSER munge
+  useradd  -m -c "MUNGE Uid 'N' Gid Emporium" -d /var/lib/munge -u $MUNGEUSER -g munge  -s /sbin/nologin munge
+  export SLURMUSER=992
+  groupadd -g $SLURMUSER slurm
+  useradd  -m -c "SLURM workload manager" -d /var/lib/slurm -u $SLURMUSER -g slurm  -s /bin/bash slurm
+
+  yum -y install epel-release
+  yum -y install munge munge-libs munge-devel
+
+  yum -y install rng-tools
+  rngd -r /dev/urandom
+
+  /usr/sbin/create-munge-key -r
+  dd if=/dev/urandom bs=1 count=1024 > /etc/munge/munge.key
+  chown -R munge: /etc/munge/ /var/log/munge/
+  chmod 0400 /etc/munge/munge.key
+  chmod 0700 /etc/munge/ /var/log/munge/
+
+  # spread key
+  # scp /etc/munge/munge.key root@1.buhpc.com:/etc/munge
+
   SRC_DIR="/usr/local/src"
 
   # mysqld
@@ -35,8 +56,12 @@ EOF
   md5sum -c mysql_hash_md5
   rpm -ivh $MYSQL_RPMS
 
-  yum -y install epel-release
-  yum -y install munge munge-libs munge-devel
+  sed -e '/^log-error=/ s/^/# /' \
+      -e '/log-error=/a log-error=/var/log/mysqld/mysqld.log' \
+      -i /etc/my.cnf
+
+
+  # start munge
 
   yum -y install openssl openssl-devel pam-devel numactl numactl-devel hwloc hwloc-devel lua lua-devel readline-devel rrdtool-devel ncurses-devel man2html libibmad libibumad
   yum -y install rpm-build perl-ExtUtils-MakeMaker
@@ -44,13 +69,25 @@ EOF
 
   cd $SRC_DIR
   wget https://download.schedmd.com/slurm/slurm-17.11.12.tar.bz2
-  echo "42f0a5dbe34210283f474328ac6e8d5267dc2386 slurm-17.11.12.tar.bz2" > hash_sha1
-  sha1sum -c hash_sha1
+  echo "42f0a5dbe34210283f474328ac6e8d5267dc2386 slurm-17.11.12.tar.bz2" > slurm_hash_sha1
+  sha1sum -c slurm_hash_sha1
   rpmbuild -ta slurm-17.11.12.tar.bz2
   yum -y --nogpgcheck localinstall /root/rpmbuild/RPMS/x86_64/slurm-*rpm
   cp /slurm_slurmdbd.conf /etc/slurm/slurmdbd.conf
   cp /slurm_slurm.conf    /etc/slurm/slurm.conf
 
+
+  # filesystem fix
+  mkdir -p /var/lib/{mysql,munge,slurm}
+  mkdir -p /var/log/{mysqld,munge,slurm}
+  mkdir -p /var/run/{mysqld,munge,slurm}
+  mkdir -p /var/spool/{slurm,slurmd}
+
+  chown slurm: /var/{log,spool}/slurm
+  chmod 0755   /var/{lib,log,run}/munge
+  # change munge key permission so we can start it as normal user with munged -f 
+  chmod 0755   /etc/munge/
+  chmod 0444   /etc/munge/munge.key
 
 %setup
   # create mysql init file
@@ -93,6 +130,7 @@ EOF
   # create lib log run dirs on host and bind them
   $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run -B spool:/var/spool slurm.simg slurm
 
+  -B lib_munge:/var/lib/munge -B lib_mysql:/var/lib/mysql
   # need slurm_init_db_server, slurm_slurm.conf and slurmdbd.conf at building time
   
   docs
