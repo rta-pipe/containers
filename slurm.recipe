@@ -127,11 +127,32 @@ EOF
 
 
 %help
+  # need slurm_init_db_server, slurm_slurm.conf and slurmdbd.conf at building time
+
   # create lib log run dirs on host and bind them
   $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run -B spool:/var/spool slurm.simg slurm
 
-  -B lib_munge:/var/lib/munge -B lib_mysql:/var/lib/mysql
-  # need slurm_init_db_server, slurm_slurm.conf and slurmdbd.conf at building time
+  # better bindings
+  mkdir -p lib_{mysql,munge,slurm} \
+           log_{mysqld,munge,slurm} \
+           run_{mysqld,munge,slurm} \
+           spool_{slurm,slurmd}
+
+  chmod 0755 lib_munge log_munge run_munge
+  chmod 0777 run_slurm
+
+  singularity shell [... bindings ...] <image>
+    --bind lib_munge:/var/lib/munge
+    --bind lib_mysql:/var/lib/mysql
+    --bind lib_slurm:/var/lib/slurm
+    --bind log_mysqld:/var/log/mysqld
+    --bind log_munge:/var/log/munge
+    --bind log_slurm:/var/log/slurm
+    --bind run_munge:/var/run/munge
+    --bind run_mysqld:/var/run/mysqld
+    --bind run_slurm:/var/run/slurm
+    --bind spool_slurm:/var/spool/slurm
+    --bind spool_slurmd:/var/spool/slurmd
   
   docs
   # https://www.slothparadise.com/how-to-install-slurm-on-centos-7-cluster/
