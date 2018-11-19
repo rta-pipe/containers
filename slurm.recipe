@@ -3,10 +3,10 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.10"
+  version "0.12"
 
 %post
-  yum -y install crontabs wget vim
+  yum -y install crontabs wget
   yum -y install deltarpm perl net-tools libaio perl-Getopt-Long numactl-libs
   # yum -y update
   localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -30,9 +30,7 @@ From: centos:7.3.1611
   chmod 0400 /etc/munge/munge.key
   chmod 0700 /etc/munge/ /var/log/munge/
 
-  # spread key
-  # scp /etc/munge/munge.key root@1.buhpc.com:/etc/munge
-
+  # install software distros
   SRC_DIR="/usr/local/src"
 
   # mysqld
@@ -73,9 +71,6 @@ EOF
   sha1sum -c slurm_hash_sha1
   rpmbuild -ta slurm-17.11.12.tar.bz2
   yum -y --nogpgcheck localinstall /root/rpmbuild/RPMS/x86_64/slurm-*rpm
-  cp /slurm_slurmdbd.conf /etc/slurm/slurmdbd.conf
-  cp /slurm_slurm.conf    /etc/slurm/slurm.conf
-
 
   # filesystem fix
   mkdir -p /var/lib/{mysql,munge,slurm}
@@ -83,77 +78,42 @@ EOF
   mkdir -p /var/run/{mysqld,munge,slurm}
   mkdir -p /var/spool/{slurm,slurmd}
 
-  chown slurm: /var/{log,spool}/slurm
-  chmod 0755   /var/{lib,log,run}/munge
+  chown slurm:slurm /var/{log,spool}/slurm
+  chmod 0755 /var/{lib,log,run}/munge
   # change munge key permission so we can start it as normal user with munged -f 
-  chmod 0755   /etc/munge/
-  chmod 0444   /etc/munge/munge.key
+  chmod 0755 /etc/munge/
+  chmod 0444 /etc/munge/munge.key
 
-%setup
-  # create mysql init file
-  cp slurm_init_db_server ${SINGULARITY_ROOTFS}/slurm_init_db_server
-  cp slurm_slurmdbd.conf  ${SINGULARITY_ROOTFS}/slurm_slurmdbd.conf
-  cp slurm_slurm.conf     ${SINGULARITY_ROOTFS}/slurm_slurm.conf
-
-
-%startscript
-  echo "checking service's dirs"
-  EXIT=0
-  DIRS="/var/lib/mysql /var/log /var/run/mysqld"
-  DIRS="$DIRS /var/spool/slurm /var/log/slurm"
-  for dir in $DIRS; do
-    mkdir -p $dir
-    touch $dir/write_test
-    if [ ! -f $dir/write_test ]; then
-      echo "$dir/ is not writable. Bind it to host directory."
-      EXIT=1
-    else
-      rm -f $dir/write_test
-    fi
-  done
-  [ $EXIT -ne 0 ] && exit 1
-  # see singularity logs in /tmp
-
-  # Check for initialization
-  if [ ! -d /var/lib/mysql/mysql ]; then
-      echo "Initializing mysqld"
-      mysqld --initialize  --init-file=/slurm_init_db_server
-      # remove slurm_init_db_server
-  fi
-
-  # launch mysqld
-  echo "Start mysqld"
-  mysqld --secure-file-priv=NULL &
-
+# %startscript
+#   echo "checking service's dirs"
+#   EXIT=0
+#   DIRS="/var/lib/mysql /var/lib/munge /var/lib/slurm"
+#   DIRS="$DIRS /var/log/mysqld /var/log/munge /var/log/slurm"
+#   DIRS="$DIRS /var/run/mysqld /var/run/munge /var/run/slurm"
+#   DIRS="$DIRS /var/spool/slurm /var/spool/slurmd"
+#   for dir in $DIRS; do
+#     mkdir -p $dir
+#     touch $dir/write_test
+#     if [ ! -f $dir/write_test ]; then
+#       echo "$dir/ is not writable. Bind it to host directory."
+#       EXIT=1
+#     else
+#       rm -f $dir/write_test
+#     fi
+#   done
+#   [ $EXIT -ne 0 ] && exit 1
+#   # see singularity logs in /tmp
+# 
 
 %help
-  # need slurm_init_db_server, slurm_slurm.conf and slurmdbd.conf at building time
+  To use this container you NEED /etc/slurm/slurm.conf 
 
-  # create lib log run dirs on host and bind them
-  $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run -B spool:/var/spool slurm.simg slurm
+  munged -f
+  mysqld --initialize --init-file=$HOME/slurm_init_db_server
+  mysqld --secure-file-priv=NULL &
+  export SLURM_CONF=slurm_slurm.conf
+  slurmctld
+  slurmd
 
-  # better bindings
-  mkdir -p lib_{mysql,munge,slurm} \
-           log_{mysqld,munge,slurm} \
-           run_{mysqld,munge,slurm} \
-           spool_{slurm,slurmd}
-
-  chmod 0755 lib_munge log_munge run_munge
-  chmod 0777 run_slurm
-
-  singularity shell [... bindings ...] <image>
-    --bind lib_munge:/var/lib/munge
-    --bind lib_mysql:/var/lib/mysql
-    --bind lib_slurm:/var/lib/slurm
-    --bind log_mysqld:/var/log/mysqld
-    --bind log_munge:/var/log/munge
-    --bind log_slurm:/var/log/slurm
-    --bind run_munge:/var/run/munge
-    --bind run_mysqld:/var/run/mysqld
-    --bind run_slurm:/var/run/slurm
-    --bind spool_slurm:/var/spool/slurm
-    --bind spool_slurmd:/var/spool/slurmd
-  
-  docs
-  # https://www.slothparadise.com/how-to-install-slurm-on-centos-7-cluster/
-  # https://slurm.schedmd.com/accounting.html
+  ln -s /my/slurmdbd_config_file $HOME/slurmdbd.conf
+  slurmdbd 

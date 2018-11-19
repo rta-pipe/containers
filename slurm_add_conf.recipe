@@ -1,0 +1,6 @@
+BootStrap: localimage
+From: slurm.base.simg
+
+%setup
+  cp slurm_slurm.conf     ${SINGULARITY_ROOTFS}/etc/slurm/slurm.conf
+  cp slurm_slurmdbd.conf  ${SINGULARITY_ROOTFS}/etc/slurm/slurmdbd.conf
