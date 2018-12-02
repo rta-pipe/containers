@@ -1,0 +1,86 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.4"
+
+%environment
+  # SINGULARITY_SHELL="/bin/bash"
+  export PATH="/opt/anaconda3/bin:${PATH}"
+
+  export GAMMALIB=/usr/local/gamma
+  source $GAMMALIB/bin/gammalib-init.sh
+
+  export CTOOLS=/usr/local/gamma
+  source $CTOOLS/bin/ctools-init.sh
+
+  # Enabling python environment...
+  source /etc/profile.d/conda.sh
+  conda activate gammapy-0.9
+
+%post
+  # Add mandatory packages...
+  yum -y install git make gcc gcc-c++ binutils ncurses-devel python-devel readline-devel
+  yum -y install bzip2 wget
+  # Add optional packages...
+  yum -y install curl less vim
+  # yum -y update
+
+  SRC_DIR="/usr/local/src"
+
+  # CFitsio
+  cd $SRC_DIR
+  wget http://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio3450.tar.gz
+  tar xzf cfitsio3450.tar.gz
+  cd cfitsio
+  ./configure --prefix=/usr/local/
+  make
+  make shared
+  make install
+
+  export LD_LIBRARY_PATH=/usr/local/lib
+
+  # gammalib
+  cd $SRC_DIR
+  wget http://cta.irap.omp.eu/ctools/releases/gammalib/gammalib-1.5.2.tar.gz
+  tar xfz gammalib-1.5.2.tar.gz
+  cd gammalib-1.5.2
+  ./configure
+  make
+  make check
+  make install
+
+  # ctools
+  cd $SRC_DIR
+  wget http://cta.irap.omp.eu/ctools/releases/ctools/ctools-1.5.2.tar.gz
+  tar xfz ctools-1.5.2.tar.gz
+  cd ctools-1.5.2
+  ./configure
+  make
+  make check
+  make install
+
+  # Install anaconda 5.3.0 x86_64...
+  cd $SRC_DIR
+  wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
+  echo "cfbf5fe70dd1b797ec677e63c61f8efc92dad930fd1c94d60390bb07fdc09959  Anaconda3-5.3.0-Linux-x86_64.sh" > anaconda_sha256
+  sha256sum -c anaconda_sha256
+  bash Anaconda3-5.3.0-Linux-x86_64.sh -b -p /opt/anaconda3
+  ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+
+  export PATH=/opt/anaconda3/bin:${PATH}
+
+  # Gammapy
+  cd $SRC_DIR
+  curl -O https://gammapy.org/download/install/gammapy-0.9-environment.yml
+  conda env create -f gammapy-0.9-environment.yml
+
+  # conda clean -y --all
+  # conda update -y conda
+  # conda update --all
+
+%help 
+  This container has Anaconda 5.3.0 for Linux x86_64
+
+  $ csinfo check
