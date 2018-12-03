@@ -3,21 +3,21 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.4"
+  version "0.5"
 
 %environment
   # SINGULARITY_SHELL="/bin/bash"
   export PATH="/opt/anaconda3/bin:${PATH}"
 
-  export GAMMALIB=/usr/local/gamma
-  source $GAMMALIB/bin/gammalib-init.sh
+  # export GAMMALIB=/usr/local/gamma
+  # source $GAMMALIB/bin/gammalib-init.sh
 
-  export CTOOLS=/usr/local/gamma
-  source $CTOOLS/bin/ctools-init.sh
+  # export CTOOLS=/usr/local/gamma
+  # source $CTOOLS/bin/ctools-init.sh
 
   # Enabling python environment...
   source /etc/profile.d/conda.sh
-  conda activate gammapy-0.9
+  conda activate py3
 
 %post
   # Add mandatory packages...
@@ -28,6 +28,17 @@ From: centos:7.3.1611
   # yum -y update
 
   SRC_DIR="/usr/local/src"
+
+  # Install anaconda 5.3.0 x86_64...
+  cd $SRC_DIR
+  wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
+  echo "cfbf5fe70dd1b797ec677e63c61f8efc92dad930fd1c94d60390bb07fdc09959  Anaconda3-5.3.0-Linux-x86_64.sh" > anaconda_sha256
+  sha256sum -c anaconda_sha256
+  bash Anaconda3-5.3.0-Linux-x86_64.sh -b -p /opt/anaconda3
+  ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+
+  export PATH=/opt/anaconda3/bin:${PATH}
+  export PYTHON=/opt/anaconda3/bin/python3
 
   # CFitsio
   cd $SRC_DIR
@@ -46,7 +57,7 @@ From: centos:7.3.1611
   wget http://cta.irap.omp.eu/ctools/releases/gammalib/gammalib-1.5.2.tar.gz
   tar xfz gammalib-1.5.2.tar.gz
   cd gammalib-1.5.2
-  ./configure
+  PYTHON=/opt/anaconda3/bin/python3 ./configure
   make
   make check
   make install
@@ -56,29 +67,34 @@ From: centos:7.3.1611
   wget http://cta.irap.omp.eu/ctools/releases/ctools/ctools-1.5.2.tar.gz
   tar xfz ctools-1.5.2.tar.gz
   cd ctools-1.5.2
-  ./configure
+  PYTHON=/opt/anaconda3/bin/python3 ./configure
   make
   make check
   make install
 
-  # Install anaconda 5.3.0 x86_64...
-  cd $SRC_DIR
-  wget -q https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
-  echo "cfbf5fe70dd1b797ec677e63c61f8efc92dad930fd1c94d60390bb07fdc09959  Anaconda3-5.3.0-Linux-x86_64.sh" > anaconda_sha256
-  sha256sum -c anaconda_sha256
-  bash Anaconda3-5.3.0-Linux-x86_64.sh -b -p /opt/anaconda3
-  ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
-
-  export PATH=/opt/anaconda3/bin:${PATH}
 
   # Gammapy
-  cd $SRC_DIR
-  curl -O https://gammapy.org/download/install/gammapy-0.9-environment.yml
-  conda env create -f gammapy-0.9-environment.yml
+  # cd $SRC_DIR
+  # curl -O https://gammapy.org/download/install/gammapy-0.9-environment.yml
+  # conda env create -f gammapy-0.9-environment.yml
+
+  conda config --append channels conda-forge
+  conda config --append channels cta-observatory
+  conda config --append channels sherpa
+  conda create -n py3 python=3.6 \
+                      gammapy=0.9 ipython=7.1 jupyter=1.0 jupyterlab=0.35 pyyaml=3.13 click=7.0 \
+                      numpy=1.15 scipy=1.1 pandas=0.23 matplotlib=3 astropy=3.0 regions=0.3 \
+                      reproject=0.4 uncertainties=3.0 iminuit=1.3 sherpa=4.10 healpy=1.11 naima=0.8 \
+                      ctools=1.5
+  source activate py3
+  python -c 'import ctools; ctools.test()'
+  python -c 'import cscripts; cscripts.test()'
+  python -c 'import gammalib; gammalib.test()'
 
   # conda clean -y --all
   # conda update -y conda
   # conda update --all
+
 
 %help 
   This container has Anaconda 5.3.0 for Linux x86_64
