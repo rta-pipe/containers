@@ -42,7 +42,7 @@ From: centos:7.3.1611
   tar -zxvf $RTA_DEP_DIR/libraries_sources/cmake-3.12.3.tar.gz
   cd cmake-3.12.3
   ./bootstrap --prefix=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3
-  make
+  make -j 4
   make install
   # TODO comment useless (?) CMAKE export
   export CMAKE=$RTA_DEP_DIR/libraries_installed/cmake-3.12.3/bin/
@@ -56,7 +56,7 @@ From: centos:7.3.1611
   tar --bzip2 -xf $RTA_DEP_DIR/libraries_sources/boost_1_67_0.tar.bz2
   cd $RTA_DEP_DIR/libraries_building_area/boost_1_67_0/
   ./bootstrap.sh --prefix=$RTA_DEP_DIR/libraries_installed/boost_1_67_0
-  ./b2 install
+  ./b2 install -j4
 
   echo "MySql cpp connector"
   mkdir -p $RTA_DEP_DIR/libraries_building_area/mysql-connector-cpp-build
@@ -77,7 +77,7 @@ From: centos:7.3.1611
   cd $RTA_DEP_DIR/libraries_installed
   git clone https://github.com/redis/hiredis.git
   cd hiredis
-  make
+  make -j2
   # TODO create a symbolic link
   cp libhiredis.so libhiredis.so.0.14
 
@@ -88,7 +88,7 @@ From: centos:7.3.1611
   tar -zxvf cfitsio3450.tar.gz
   cd cfitsio
   ./configure --prefix=$RTA_DEP_DIR/libraries_installed/cfitsio_install
-  make
+  make -j2
   make shared
   make install
 
@@ -119,19 +119,8 @@ From: centos:7.3.1611
   cd $RTA_DEP_DIR/libraries_building_area/google-test-1.8.1
   cmake -DCMAKE_INSTALL_PREFIX=$RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install \
         $RTA_DEP_DIR/libraries_sources/googletest
-  make
+  make -j2
   make install
-
-  echo "RTA Compilation"
-  cd $SRC_DIR/RTAlib/CxxRTAlib
-  export REDIS=$RTA_DEP_DIR/libraries_installed/hiredis
-  export MYSQL_CXX_CNT=$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install
-  export BOOST_PATH=$RTA_DEP_DIR/libraries_installed/boost_1_67_0
-  export CTA_ALGORITHMS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAAlgorithms
-  export CTA_UTILS=$RTA_DEP_DIR/libraries_installed/RTAPrototype2-Setup/CTAUtils
-  export GTEST_DIR=$RTA_DEP_DIR/libraries_installed/google-test-1.8.1-install
-  make
-
 
 
   # TODO we can change redis port touching /etc/redis.conf
