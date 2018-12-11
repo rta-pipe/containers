@@ -135,8 +135,11 @@ From: centos:7.3.1611
   bash Anaconda3-5.3.0-Linux-x86_64.sh -b -p /opt/anaconda3
   ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
   export PATH=/opt/anaconda3/bin:${PATH}
-  conda create -y -n rtalib-env python=3.6 mysql-connector-python=8.0.12 redis=2.10.6 coverage=5.0a3 astropy=3.0.4
+  conda create -y -n rtalib-env python=3.6 mysql-connector-python=8.0.12 astropy=3.0.4
   conda clean -y --all
+  source activate rtalib-env
+  pip install mysql-connector-python==8.0.12 astropy==3.0.4 redis==2.10.6 coverage==5.0a3 matplotlib==3.0.2
+
 
 
 %environment
@@ -145,6 +148,7 @@ From: centos:7.3.1611
   # Enabling python environment...
   source /etc/profile.d/conda.sh
   conda activate rtalib-env
+
 
 
 %setup
