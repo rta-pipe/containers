@@ -3,7 +3,7 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com"
-  version "0.7"
+  version "0.8"
 
 %environment
   # SINGULARITY_SHELL="/bin/bash"
@@ -22,12 +22,17 @@ From: centos:7.3.1611
 %post
   # Add mandatory packages...
   yum -y install git make gcc gcc-c++ binutils ncurses-devel python-devel readline-devel
-  yum -y install bzip2 wget
+  yum -y install bzip2 wget libXft
   # Add optional packages...
   yum -y install curl less vim
   # yum -y update
 
   SRC_DIR="/usr/local/src"
+
+  # install ds9
+  cd $SRC_DIR
+  wget http://ds9.si.edu/download/centos7/ds9.centos7.7.6.tar.gz
+  tar -x -z -f $SRC_DIR/ds9.centos7.7.6.tar.gz -C /usr/local/bin
 
   # Install anaconda 5.3.0 x86_64...
   cd $SRC_DIR
