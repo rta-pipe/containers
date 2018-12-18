@@ -1,5 +1,5 @@
-SET PASSWORD FOR 'root'@'localhost' = PASSWORD('D>E8rL+d');
-CREATE USER 'tester'@'localhost' IDENTIFIED BY '{NAe3[]<';
+SET PASSWORD FOR 'root'@'localhost' = PASSWORD('SingMysql2018');
+CREATE USER 'tester'@'localhost' IDENTIFIED BY 'SingMysqlTester2018';
 CREATE DATABASE IF NOT EXISTS rtalib_db;
 GRANT ALL PRIVILEGES ON rtalib_db.* TO 'tester'@'%';
 

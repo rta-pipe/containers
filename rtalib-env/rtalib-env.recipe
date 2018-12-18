@@ -3,7 +3,7 @@ From: centos:7.3.1611
 
 %labels
   author "simotrone@gmail.com, leonardo.baroncelli@inaf.it"
-  version "0.20"
+  version "0.21"
 
 
 %post
