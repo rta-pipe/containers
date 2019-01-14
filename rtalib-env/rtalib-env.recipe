@@ -2,8 +2,46 @@ BootStrap: docker
 From: centos:7.3.1611
 
 %labels
-  author "simotrone@gmail.com, leonardo.baroncelli@inaf.it"
-  version "0.21"
+  author "leonardo.baroncelli@inaf.it simotrone@gmail.com"
+  version "0.22"
+
+%help
+  RTAlib environment - Built with Singularity 2.6
+    * mysql server 5.7.24
+    * redis server 3.2.12
+
+  $ mkdir -p bind_dirs/lib/mysql && mkdir -p bind_dirs/log && mkdir -p bind_dirs/run/mysqld
+  $ cp containers/rtalib_env/init_db_server /tmp
+
+  $ singularity exec  --bind bind_dirs/lib:/var/lib --bind bind_dirs/lib/mysql:/var/lib/mysql --bind bind_dirs/log:/var/log --bind bind_dirs/run:/var/run this.sigm python --version
+  $ singularity shell --bind bind_dirs/lib:/var/lib --bind bind_dirs/lib/mysql:/var/lib/mysql --bind bind_dirs/log:/var/log --bind bind_dirs/run:/var/run this.sigm
+  $ (Sing 2.6) singularity instance.start --bind bind_dirs/lib:/var/lib --bind bind_dirs/lib/mysql:/var/lib/mysql --bind bind_dirs/log:/var/log --bind bind_dirs/run:/var/run this.simg rta_lib_env_service
+  $ (Sing 3.0) singularity instance start --bind bind_dirs/lib:/var/lib --bind bind_dirs/lib/mysql:/var/lib/mysql --bind bind_dirs/log:/var/log --bind bind_dirs/run:/var/run this.simg rta_lib_env_service
+
+  $ singularity instance list
+  $ singularity exec instance://rta_lib_env_service python --version
+  $ singularity shell instance://rta_lib_env_service python --version
+
+  $ RTAlib deps path: /usr/local/src/rtalib_dep_libs
+
+
+%setup
+  # create mysql init file
+  # cp init_db_server ${SINGULARITY_ROOTFS}/init_db_server
+  # init_db_server example:
+  # SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
+  # CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
+  # CREATE DATABASE IF NOT EXISTS local_db;
+  # GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
+  # DROP DATABASE IF EXISTS test;
+
+%environment
+  PATH="/opt/anaconda3/bin:${PATH}"
+  export PATH
+  # Enabling python environment...
+  source /etc/profile.d/conda.sh
+  conda activate rtalib-env
+
 
 
 %post
@@ -123,9 +161,6 @@ From: centos:7.3.1611
   make install
 
 
-  # TODO we can change redis port touching /etc/redis.conf
-
-
   # it's important anaconda section stay at the end of the building process
   # standard python environment it's mandatory to build previous sections
   echo "Install anaconda 5.3.0 x86_64"
@@ -141,25 +176,6 @@ From: centos:7.3.1611
   pip install mysql-connector-python==8.0.12 astropy==3.0.4 redis==2.10.6 coverage==5.0a3 matplotlib==3.0.2
 
 
-
-%environment
-  PATH="/opt/anaconda3/bin:${PATH}"
-  export PATH
-  # Enabling python environment...
-  source /etc/profile.d/conda.sh
-  conda activate rtalib-env
-
-
-
-%setup
-  # create mysql init file
-  cp init_db_server ${SINGULARITY_ROOTFS}/init_db_server
-  # init_db_server example:
-  # SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
-  # CREATE USER 'simple'@'localhost' IDENTIFIED BY 'my-simple-pw';
-  # CREATE DATABASE IF NOT EXISTS local_db;
-  # GRANT ALL PRIVILEGES ON local_db.* TO 'simple'@'%';
-  # DROP DATABASE IF EXISTS test;
 
 
 
@@ -185,37 +201,27 @@ From: centos:7.3.1611
   # Check for initialization
   if [ ! -d /var/lib/mysql/mysql ]; then
       echo "Initializing mysqld"
-      mysqld --initialize  --init-file=/init_db_server
-      # remove init_db_server
+      /usr/sbin/mysqld --initialize --init-file=/tmp/init_db_server
   fi
-
-  # launch redis-server
-  echo "Start redis-server"
-  /usr/bin/redis-server &
 
   # launch mysqld
   echo "Start mysqld"
-  mysqld --secure-file-priv=NULL &
+  /usr/sbin/mysqld --secure-file-priv=NULL --port=60307 --mysqlx-port=60308 &
 
 
-%help
-  mysql server
-  redis server
-  python env
-  php
-  rta pipe lib
+  # launch redis-server
+  echo "Start redis-server"
+  redis-server --port 63800 &
 
-  # create lib log run dirs on host and bind them
-  $ singularity instance.start -B lib/:/var/lib -B log/:/var/log -B run/:/var/run full.simg full
-  $ singularity exec full.simg python -V
-  $ singularity exec instance://full php -v
+  # activate the virtual environment
+  source activate rtalib-env
 
-
-  # TODO
-  # fix setupDB script
-  # final test to run
-  #export SRC_DIR="/usr/local/src"
-  #export RTA_DEP_DIR="${SRC_DIR}/rtalib_dep_libs"
-  #export LD_LIBRARY_PATH="$RTA_DEP_DIR/libraries_installed/mysql-connector-cpp-install/lib64/:$LD_LIBRARY_PATH"
-  #export LD_LIBRARY_PATH="$RTA_DEP_DIR/libraries_installed/hiredis:$LD_LIBRARY_PATH"
-  #$SRC_DIR/RTAlib/CxxRTAlib/TestEnvironment/bin/unitTest
+  export RTALIBDEPS=/usr/local/src/rtalib_dep_libs/
+  export REDIS=$RTALIBDEPS/libraries_installed/hiredis
+  export MYSQL_CXX_CNT=$RTALIBDEPS/libraries_installed/mysql-connector-cpp-install
+  export BOOST_PATH=$RTALIBDEPS/libraries_installed/boost_1_67_0
+  export CTA_ALGORITHMS=$RTALIBDEPS/libraries_installed/RTAPrototype2-Setup/CTAAlgorithms/
+  export CTA_UTILS=$RTALIBDEPS/libraries_installed/RTAPrototype2-Setup/CTAUtils/
+  export GTEST_DIR=$RTALIBDEPS/libraries_installed/google-test-1.8.1-install
+  export LD_LIBRARY_PATH=$RTALIBDEPS/libraries_installed/hiredis:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=$RTALIBDEPS/libraries_installed/mysql-connector-cpp-install/lib64/:$LD_LIBRARY_PATH

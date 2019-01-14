@@ -1,9 +1,13 @@
 SET PASSWORD FOR 'root'@'localhost' = PASSWORD('SingMysql2018');
 CREATE USER 'tester'@'localhost' IDENTIFIED BY 'SingMysqlTester2018';
-CREATE DATABASE IF NOT EXISTS rtalib_db;
-GRANT ALL PRIVILEGES ON rtalib_db.* TO 'tester'@'%';
+CREATE USER 'tester127'@'127.0.0.1' IDENTIFIED BY 'SingMysql127Tester2018';
 
-USE rtalib_db;
+INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+
+CREATE DATABASE IF NOT EXISTS rtalib_db_test;
+GRANT ALL PRIVILEGES ON rtalib_db_test.* TO 'tester'@'%';
+
+USE rtalib_db_test;
 
 CREATE TABLE IF NOT EXISTS rtalib_test_table (
                                           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -11,7 +15,8 @@ CREATE TABLE IF NOT EXISTS rtalib_test_table (
                                           b INTEGER,
                                           c INTEGER,
                                           d INTEGER
-                                        );
+                                        ) ENGINE=INNODB;
+
 
 CREATE TABLE IF NOT EXISTS rtalib_dl_test_table (
                                         evtid BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -27,4 +32,10 @@ CREATE TABLE IF NOT EXISTS rtalib_dl_test_table (
                                         status INTEGER,
                                         timerealtt DOUBLE,
                                         insert_time INTEGER UNSIGNED
-                                      );
+                                      ) ENGINE=INNODB;
+
+CREATE TABLE IF NOT EXISTS meta_test_table (
+                                          id INT AUTO_INCREMENT PRIMARY KEY,
+                                          john INTEGER,
+                                          doe INTEGER
+                                        );

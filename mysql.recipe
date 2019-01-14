@@ -8,7 +8,10 @@ From: centos:7.3.1611
 %help
   MySQL server 5.7.24
   Need mount /var/lib/mysql /var/log/ /var/run/mariadb on host.
-  $ singularity instance.start -B lib:/var/lib -B log:/var/log/ -B run:/var/run this.simg mysql
+
+  $ singularity exec           --bind mysql_bind/lib:/var/lib --bind mysql_bind/log:/var/log -B mysql_bind/run:/var/run this.sigm python --version
+  $ singularity shell          --bind mysql_bind/lib:/var/lib --bind mysql_bind/log:/var/log -B mysql_bind/run:/var/run this.sigm mysql_service
+  $ singularity instance.start --bind mysql_bind/lib:/var/lib --bind mysql_bind/log:/var/log -B mysql_bind/run:/var/run this.simg mysql_service
 
 %setup
   # create mysql init file
@@ -55,4 +58,4 @@ From: centos:7.3.1611
 
   # launch mysqld
   echo "Start mysqld"
-  mysqld --secure-file-priv=NULL &
+  mysqld --secure-file-priv=NULL --port 33066 &

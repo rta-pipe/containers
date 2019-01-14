@@ -1,0 +1,54 @@
+BootStrap: docker
+From: centos:7.3.1611
+
+%labels
+  author "leonardo.baroncelli@inaf.it"
+  version "0.1"
+
+%help
+  Redis recipe - Built with Singularity 2.6
+
+  singularity exec --bind lib:/var/lib --bind log:/var/log --bind run:/var/run redis.sif ls /usr/bin
+
+  singularity shell  --bind lib:/var/lib --bind log:/var/log --bind run:/var/run redis.sif
+
+  singularity instance start --bind lib:/var/lib --bind log:/var/log --bind run:/var/run redis.sif redis-service
+  singularity instance.start --bind lib:/var/lib --bind log:/var/log --bind run:/var/run redis.sif redis-service
+
+%setup
+
+%environment
+
+
+
+%post
+  yum -y install openssh-clients php
+  yum -y install gcc gcc-c++ make python-devel openssl-devel
+  yum -y install bzip2 curl git less nmap-ncat vim wget
+  yum -y install epel-release
+  yum -y install redis
+  # yum -y update
+
+
+%startscript
+  echo "checking service's dirs"
+  EXIT=0
+  # redis + mysql
+  DIRS="/var/lib/redis /var/log/redis /var/run"
+  for dir in $DIRS; do
+    mkdir -p $dir
+    touch $dir/write_test
+    if [ ! -f $dir/write_test ]; then
+      echo "$dir/ is not writable. Bind it to host directory."
+      EXIT=1
+    else
+      rm -f $dir/write_test
+    fi
+  done
+  [ $EXIT -ne 0 ] && exit 1
+  # see singularity logs in /tmp
+
+
+  # launch redis-server
+  echo "Start redis-server"
+  /usr/bin/redis-server --port 63799 &
