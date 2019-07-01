@@ -1,0 +1,24 @@
+BootStrap: docker
+From: centos:7.6.1810
+
+%labels
+  author "simotrone@gmail.com"
+  version "0.3"
+
+%files
+  parallel_studio_xe_2019_update4_cluster_edition.tar /usr/local/src
+  silent.cfg /usr/local/src
+
+%post
+  yum -y install wget vim curl less libXft make
+  yum -y install libXScrnSaver gtk3 xorg-x11-server-Xorg
+  yum -y install gsl-devel gcc gcc-c++
+  # optional
+  yum -y install gtk2 alsa-lib 
+
+  SRC=/usr/local/src
+  cd $SRC
+  tar xf parallel_studio_xe_2019_update4_cluster_edition.tar
+  cd parallel_studio_xe_2019_update4_cluster_edition
+  bash install.sh -s $SRC/silent.cfg
+
